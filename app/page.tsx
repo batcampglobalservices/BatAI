@@ -215,10 +215,12 @@ function ChatSection() {
       return;
     }
 
+    if (!input.trim()) return;
+
     sendMessage({
-      text: input,
-      files,
-    });
+      role: 'user',
+      parts: [{ type: 'text', text: input }]
+    } as any);
     setInput("");
     setFiles(undefined);
     if (fileInputRef.current) {
