@@ -9,20 +9,12 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import PromptSelector from "@/components/PromptSelector";
 import { AIPrompt, getPrompt } from "@/config/ai-prompts";
+import { UIMessage } from "ai";
 
-import { Message as AIMessage } from "ai";
-
-interface MessagePart {
-  type: "text" | "file";
-  text?: string;
-  url?: string;
-  filename?: string;
-  mediaType?: string;
-  content?: string;
-}
-
-interface ChatMessage extends AIMessage {
-  parts: MessagePart[];
+type Message = {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
 }
 
 function LoginPage() {
@@ -117,10 +109,10 @@ export default function HomePage() {
           const loadedMessages = data.chat.messages.map(
           (msg: { role: string; content: string }) => ({
             id: Math.random().toString(),
-            role: msg.role,
+            role: msg.role as 'user' | 'assistant' | 'system',
             content: msg.content,
-            parts: [{ type: "text" as const, content: msg.content }],
-          } as ChatMessage)
+            text: msg.content,
+          } as Message)
         );
         setMessages(loadedMessages);
       }
@@ -134,14 +126,15 @@ export default function HomePage() {
 
     const simplifiedMessages = messages.map((msg) => ({
       role: msg.role,
-      content: (msg as ChatMessage).parts?.[0]?.content || msg.content || "",
+      content: String(msg.parts?.[0]?.type === 'text' ? (msg.parts[0] as any).text : ''),
       timestamp: new Date(),
     }));
 
     // Generate title from first user message
     const firstUserMessage = messages.find((m) => m.role === "user");
-    const title = ((firstUserMessage as ChatMessage).parts?.[0]?.content || 
-                   firstUserMessage?.content || "New Chat").slice(0, 50);
+    const title = (firstUserMessage?.parts?.[0]?.type === 'text' 
+      ? String((firstUserMessage.parts[0] as any).text)
+      : "New Chat").slice(0, 50);
 
     try {
       await fetch(`/api/chats/${currentChatId}`, {
@@ -208,9 +201,8 @@ export default function HomePage() {
     }
 
     sendMessage({
-      content: input,
+      text: input,
       files,
-      role: 'user'
     });
     setInput("");
     setFiles(undefined);
@@ -264,35 +256,12 @@ export default function HomePage() {
               <div className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
                 {message.role === "user" ? "You:" : "AI:"}
               </div>
-              {message.parts.map((part, index) => {
-                switch (part.type) {
-                  case "text":
-                    return (
-                      <div
-                        key={`${message.id}-${index}`}
-                        className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-900 p-4 rounded-lg"
-                      >
-                        {part.content || part.text}
-                      </div>
-                    );
-                  case "file":
-                    if (part.mediaType?.startsWith("image/")) {
-                      return (
-                        <Image
-                          key={`${message.id}-${index}`}
-                          src={part.url || ""}
-                          alt={part.filename ?? `attachment-${index}`}
-                          width={500}
-                          height={500}
-                          className="rounded-lg border border-zinc-200 dark:border-zinc-800"
-                        />
-                      );
-                    }
-                    return null;
-                  default:
-                    return null;
-                }
-              })}
+              <div
+                key={message.id}
+                className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-900 p-4 rounded-lg"
+              >
+                {message.parts?.[0]?.type === 'text' ? (message.parts[0] as any).text : ''}
+              </div>
             </div>
           ))}
 
