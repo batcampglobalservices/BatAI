@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     console.log('Using system prompt:', { promptKey, description: systemPrompt.description });
 
     const result = streamText({
-      model: google("gemini-2.5-flash"),
+      model: google("gemini-1.5-flash"),
       messages: [
         systemPrompt,
         ...convertToModelMessages(messages),
@@ -49,6 +49,11 @@ export async function POST(req: Request) {
     return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("Error streaming chat completion:", error);
-    return new Response("Failed to stream chat completion", { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error("Full error details:", errorMessage);
+    return new Response(JSON.stringify({ error: "Failed to stream chat completion", details: errorMessage }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
