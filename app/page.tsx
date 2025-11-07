@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import Image from "next/image";
@@ -88,8 +88,7 @@ function LoginPage() {
   );
 }
 
-export default function HomePage() {
-  const { data: session, status: authStatus } = useSession();
+function ChatSection() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const chatId = searchParams?.get("chat");
@@ -192,21 +191,6 @@ export default function HomePage() {
     }
   };
 
-  if (authStatus === "loading") {
-    return (
-      <div className="flex justify-center items-center h-screen bg-zinc-50 dark:bg-zinc-950">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
-          <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    return <LoginPage />;
-  }
-
   const handleSelectChat = (chatId: string) => {
     router.push(`/?chat=${chatId}`);
   };
@@ -253,28 +237,6 @@ export default function HomePage() {
 
       <div className="flex-1 flex flex-col pl-16 lg:pl-0">
         <div className="flex flex-col w-full max-w-3xl mx-auto pt-20 pb-36 px-4">
-          {/* User Info & Sign Out */}
-          <div className="fixed top-0 right-0 p-4 flex items-center gap-3 bg-zinc-50/80 dark:bg-zinc-950/80 backdrop-blur-sm z-20">
-            <span className="text-sm text-zinc-700 dark:text-zinc-300">
-              {session.user?.name}
-            </span>
-            {session.user?.image && (
-              <Image
-                src={session.user.image}
-                alt="Profile"
-                width={32}
-                height={32}
-                className="rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800"
-              />
-            )}
-            <button
-              onClick={() => signOut()}
-              className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-            >
-              Sign Out
-            </button>
-          </div>
-
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 p-4 rounded-lg mb-4">
               {error.message}
@@ -288,7 +250,6 @@ export default function HomePage() {
                 {message.role === "user" ? "You:" : "AI:"}
               </div>
               <div
-                key={message.id}
                 className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-900 p-4 rounded-lg"
               >
                 {message.parts?.[0]?.type === 'text' ? (message.parts[0] as any).text : ''}
@@ -392,5 +353,60 @@ export default function HomePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoadingSpinner() {
+  return (
+    <div className="flex justify-center items-center min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const { data: session, status: authStatus } = useSession();
+
+  if (authStatus === "loading") {
+    return (
+      <div className="flex justify-center items-center h-screen bg-zinc-50 dark:bg-zinc-950">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
+          <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <LoginPage />;
+  }
+
+  return (
+    <>
+      <div className="fixed top-0 right-0 p-4 flex items-center gap-3 bg-zinc-50/80 dark:bg-zinc-950/80 backdrop-blur-sm z-20">
+        <span className="text-sm text-zinc-700 dark:text-zinc-300">
+          {session.user?.name}
+        </span>
+        {session.user?.image && (
+          <Image
+            src={session.user.image}
+            alt="Profile"
+            width={32}
+            height={32}
+            className="rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800"
+          />
+        )}
+        <button
+          onClick={() => signOut()}
+          className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+        >
+          Sign Out
+        </button>
+      </div>
+      <Suspense fallback={<LoadingSpinner />}>
+        <ChatSection />
+      </Suspense>
+    </>
   );
 }
