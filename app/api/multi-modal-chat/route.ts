@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     console.log('Using system prompt:', { promptKey, description: systemPrompt.description });
 
     const result = streamText({
-      model: google("models/gemini-1.5-flash-latest"),
+      model: google("gemini-1.5-flash"),
       messages: [
         systemPrompt,
         ...convertToModelMessages(messages),
