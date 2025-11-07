@@ -19,7 +19,15 @@ export async function POST(req: Request) {
       promptKey?: string;
     } = await req.json();
 
-    console.log('Received request with promptKey:', promptKey);
+    console.log('Received request:', { promptKey, messagesCount: messages?.length });
+
+    // Validate messages
+    if (!messages || !Array.isArray(messages)) {
+      return new Response(JSON.stringify({ error: "Invalid messages format" }), { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     // Connect to DB if we need to save the chat
     if (chatId) {
@@ -38,7 +46,7 @@ export async function POST(req: Request) {
     console.log('Using system prompt:', { promptKey, description: systemPrompt.description });
 
     const result = streamText({
-      model: google("gemini-2.5-flash"),
+      model: google("models/gemini-1.5-flash-latest"),
       messages: [
         systemPrompt,
         ...convertToModelMessages(messages),
