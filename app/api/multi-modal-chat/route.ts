@@ -28,13 +28,12 @@ export async function POST(req: Request) {
       chatId 
     });
 
-    // Validate messages
-    if (!Array.isArray(messages) || messages.length === 0) {
-      console.error('Invalid or empty messages array:', messages);
+    // Validate messages is an array
+    if (!Array.isArray(messages)) {
+      console.error('Messages is not an array:', messages);
       return new Response(JSON.stringify({ 
-        error: "Invalid messages format", 
-        receivedType: typeof messages,
-        messagesLength: messages?.length 
+        error: "Invalid messages format - must be an array", 
+        receivedType: typeof messages
       }), { 
         status: 400,
         headers: { 'Content-Type': 'application/json' }
@@ -57,11 +56,14 @@ export async function POST(req: Request) {
     const systemPrompt = getPrompt(promptKey);
     console.log('Using system prompt:', { promptKey, description: systemPrompt.description });
 
+    // Convert messages safely
+    const convertedMessages = messages.length > 0 ? convertToModelMessages(messages) : [];
+    
     const result = streamText({
-      model: google("gemini-2.5-flash"),
+      model: google("gemini-1.5-flash"),
       messages: [
         systemPrompt,
-        ...convertToModelMessages(messages),
+        ...convertedMessages,
       ],
     });
 
