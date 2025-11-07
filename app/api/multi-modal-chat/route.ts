@@ -14,20 +14,28 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    console.log('Received request body:', body);
+    console.log('Received request body:', JSON.stringify(body, null, 2));
 
-    const { messages, chatId, promptKey = "default" }: { 
-      messages?: UIMessage[]; 
-      chatId?: string;
-      promptKey?: string;
-    } = body;
+    // Extract messages and custom body data
+    const messages = body.messages || [];
+    const chatId = body.chatId;
+    const promptKey = body.promptKey || "default";
 
-    console.log('Received request:', { promptKey, messagesCount: messages?.length, hasMessages: !!messages });
+    console.log('Parsed data:', { 
+      promptKey, 
+      messagesCount: messages?.length, 
+      hasMessages: !!messages,
+      chatId 
+    });
 
     // Validate messages
-    if (!messages || !Array.isArray(messages)) {
-      console.error('Invalid messages:', messages);
-      return new Response(JSON.stringify({ error: "Invalid messages format", receivedType: typeof messages }), { 
+    if (!Array.isArray(messages) || messages.length === 0) {
+      console.error('Invalid or empty messages array:', messages);
+      return new Response(JSON.stringify({ 
+        error: "Invalid messages format", 
+        receivedType: typeof messages,
+        messagesLength: messages?.length 
+      }), { 
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
