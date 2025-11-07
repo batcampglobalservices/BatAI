@@ -13,17 +13,21 @@ export async function POST(req: Request) {
       return new Response("Unauthorized", { status: 401 });
     }
 
+    const body = await req.json();
+    console.log('Received request body:', body);
+
     const { messages, chatId, promptKey = "default" }: { 
-      messages: UIMessage[]; 
+      messages?: UIMessage[]; 
       chatId?: string;
       promptKey?: string;
-    } = await req.json();
+    } = body;
 
-    console.log('Received request:', { promptKey, messagesCount: messages?.length });
+    console.log('Received request:', { promptKey, messagesCount: messages?.length, hasMessages: !!messages });
 
     // Validate messages
     if (!messages || !Array.isArray(messages)) {
-      return new Response(JSON.stringify({ error: "Invalid messages format" }), { 
+      console.error('Invalid messages:', messages);
+      return new Response(JSON.stringify({ error: "Invalid messages format", receivedType: typeof messages }), { 
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
