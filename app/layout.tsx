@@ -16,12 +16,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BatAI - Your Friendly AI Assistant",
   description: "AI-powered chat assistant with multiple personalities and capabilities",
-  metadataBase: new URL('https://batcamp.vercel.app'),
+  metadataBase: new URL('https://batcamp-globals-ai.vercel.app'),
   authors: [{ name: "BatCamp Global Services" }],
   openGraph: {
     title: "BatAI - Your Friendly AI Assistant",
     description: "AI-powered chat assistant with multiple personalities and capabilities",
-    url: 'https://batcamp.vercel.app',
+    url: 'https://batcamp-globals-ai.vercel.app',
     siteName: 'BatAI',
     locale: 'en_US',
     type: 'website',

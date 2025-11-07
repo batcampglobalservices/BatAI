@@ -10,17 +10,18 @@ import Sidebar from "@/components/Sidebar";
 import PromptSelector from "@/components/PromptSelector";
 import { AIPrompt, getPrompt } from "@/config/ai-prompts";
 
+import { Message as AIMessage } from "ai";
+
 interface MessagePart {
-  type: string;
+  type: "text" | "file";
   text?: string;
   url?: string;
   filename?: string;
   mediaType?: string;
+  content?: string;
 }
 
-interface Message {
-  id: string;
-  role: string;
+interface ChatMessage extends AIMessage {
   parts: MessagePart[];
 }
 
@@ -113,12 +114,13 @@ export default function HomePage() {
       const res = await fetch(`/api/chats/${id}`);
       const data = await res.json();
       if (data.chat) {
-        const loadedMessages = data.chat.messages.map(
+          const loadedMessages = data.chat.messages.map(
           (msg: { role: string; content: string }) => ({
             id: Math.random().toString(),
             role: msg.role,
-            parts: [{ type: "text", text: msg.content }],
-          })
+            content: msg.content,
+            parts: [{ type: "text" as const, content: msg.content }],
+          } as ChatMessage)
         );
         setMessages(loadedMessages);
       }
@@ -132,13 +134,14 @@ export default function HomePage() {
 
     const simplifiedMessages = messages.map((msg) => ({
       role: msg.role,
-      content: msg.parts.map((p) => p.text || "").join(""),
+      content: (msg as ChatMessage).parts?.[0]?.content || msg.content || "",
       timestamp: new Date(),
     }));
 
     // Generate title from first user message
     const firstUserMessage = messages.find((m) => m.role === "user");
-    const title = firstUserMessage?.parts[0]?.text?.slice(0, 50) || "New Chat";
+    const title = ((firstUserMessage as ChatMessage).parts?.[0]?.content || 
+                   firstUserMessage?.content || "New Chat").slice(0, 50);
 
     try {
       await fetch(`/api/chats/${currentChatId}`, {
@@ -204,7 +207,11 @@ export default function HomePage() {
       return;
     }
 
-    sendMessage({ text: input, files });
+    sendMessage({
+      content: input,
+      files,
+      role: 'user'
+    });
     setInput("");
     setFiles(undefined);
     if (fileInputRef.current) {
@@ -265,7 +272,7 @@ export default function HomePage() {
                         key={`${message.id}-${index}`}
                         className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-900 p-4 rounded-lg"
                       >
-                        {part.text}
+                        {part.content || part.text}
                       </div>
                     );
                   case "file":
