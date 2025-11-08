@@ -109,7 +109,7 @@ export async function POST(req: Request): Promise<Response> {
 
     // 🤖 Stream AI response using Google Gemini
     const result = streamText({
-      model: google("gemini-1.5-flash"), // ✅ correct model name
+      model: google("gemini-1.5-flash-latest"), // ✅ correct model name
       system: systemPrompt.content,
       messages: messages,
     });
