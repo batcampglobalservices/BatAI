@@ -1,9 +1,15 @@
 import { streamText, CoreMessage } from "ai";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { auth } from "@/auth";
 import Chat from "@/models/Chat";
 import connectDB from "@/lib/mongodb";
 import { getPrompt } from "@/config/ai-prompts";
+
+const google = createGoogleGenerativeAI({
+  baseURL:
+    process.env.GOOGLE_GENERATIVE_AI_BASE_URL ??
+    "https://generativelanguage.googleapis.com/v1",
+});
 
 // 🚀 Main route handler
 export async function POST(req: Request): Promise<Response> {
@@ -48,7 +54,7 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     // 🔄 Normalize messages to CoreMessage format
-    const messages: CoreMessage[] = rawMessages.map((msg: any) => {
+  const messages: CoreMessage[] = rawMessages.map((msg: any) => {
       // If message has content directly, use it
       if (msg.content) {
         return {
@@ -72,7 +78,21 @@ export async function POST(req: Request): Promise<Response> {
         role: msg.role || "user",
         content: msg.text || "",
       };
-    }).filter(msg => msg.content.trim().length > 0); // Remove empty messages
+    }).filter((msg) => msg.content.trim().length > 0); // Remove empty messages
+
+    if (messages.length === 0) {
+      console.error("No valid messages after normalization", rawMessages);
+      return new Response(
+        JSON.stringify({
+          error: "No valid messages provided",
+          receivedBody: body,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
     // 🗄️ Connect to DB if chatId provided
     if (chatId) {
@@ -109,7 +129,7 @@ export async function POST(req: Request): Promise<Response> {
 
     // 🤖 Stream AI response using Google Gemini
     const result = streamText({
-      model: google("gemini-1.5-flash-latest"), // ✅ correct model name
+      model: google("gemini-1.5-flash"),
       system: systemPrompt.content,
       messages: messages,
     });
