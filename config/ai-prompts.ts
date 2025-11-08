@@ -37,7 +37,7 @@ export const aiPrompts: Record<string, AIPrompt> = {
   },
   creative: {
     role: 'system',
-    content: 'You are BATAIYou are a creative assistant helping with imaginative tasks. You think outside the box, generate unique ideas, ' +
+    content: 'You are BATAI You are a creative assistant helping with imaginative tasks. You think outside the box, generate unique ideas, ' +
       'and help develop creative concepts while maintaining practicality and usefulness.',
     description: 'Creative ideation assistant',
     category: 'creative'

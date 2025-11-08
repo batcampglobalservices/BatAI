@@ -1,19 +1,13 @@
-import { streamText, convertToCoreMessages } from "ai";
+import { streamText, UIMessage, convertToModelMessages } from "ai";
 import { google } from "@ai-sdk/google";
 import { auth } from "@/auth";
 import Chat from "@/models/Chat";
 import connectDB from "@/lib/mongodb";
 import { getPrompt } from "@/config/ai-prompts";
 
-// 🧩 Message type (includes system for compatibility)
-interface Message {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-
 // 🧠 Request body type
 interface ChatRequestBody {
-  messages: Message[];
+  messages: UIMessage[];
   chatId?: string;
   promptKey?: string;
 }
@@ -89,10 +83,7 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     // 🔁 Convert user messages to AI model format
-    const convertedMessages = messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+    const convertedMessages = convertToModelMessages(messages);
 
     // 🤖 Stream AI response using Google Gemini
     const result = streamText({
@@ -101,7 +92,7 @@ export async function POST(req: Request): Promise<Response> {
       messages: convertedMessages,
     });
 
-    // 🚀 Return a streamable text response (correct for TypeScript)
+    // 🚀 Return a streamable response for the UI
     return result.toTextStreamResponse();
   } catch (error: unknown) {
     console.error("Error streaming chat completion:", error);
