@@ -19,25 +19,25 @@ export async function POST(req: Request): Promise<Response> {
     console.log("Received request body:", JSON.stringify(body, null, 2));
 
     // Extract data from request
-    const messages: CoreMessage[] = body.messages || [];
+    const rawMessages = body.messages || [];
     const chatId = body.chatId;
     const promptKey = body.promptKey || "default";
 
     console.log("Parsed data:", {
       promptKey,
-      messagesCount: messages?.length,
-      hasMessages: Array.isArray(messages),
+      messagesCount: rawMessages?.length,
+      hasMessages: Array.isArray(rawMessages),
       chatId,
       bodyKeys: Object.keys(body),
     });
 
     // ✅ Validate messages array
-    if (!Array.isArray(messages) || messages.length === 0) {
-      console.error("Invalid messages:", messages);
+    if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
+      console.error("Invalid messages:", rawMessages);
       return new Response(
         JSON.stringify({
           error: "Invalid messages format - must be a non-empty array",
-          receivedType: typeof messages,
+          receivedType: typeof rawMessages,
           receivedBody: body,
         }),
         {
@@ -46,6 +46,33 @@ export async function POST(req: Request): Promise<Response> {
         }
       );
     }
+
+    // 🔄 Normalize messages to CoreMessage format
+    const messages: CoreMessage[] = rawMessages.map((msg: any) => {
+      // If message has content directly, use it
+      if (msg.content) {
+        return {
+          role: msg.role,
+          content: msg.content,
+        };
+      }
+      // If message has parts (UIMessage format), extract text from parts
+      if (msg.parts && Array.isArray(msg.parts)) {
+        const textContent = msg.parts
+          .filter((part: any) => part.type === "text")
+          .map((part: any) => part.text)
+          .join("");
+        return {
+          role: msg.role,
+          content: textContent,
+        };
+      }
+      // Fallback
+      return {
+        role: msg.role || "user",
+        content: msg.text || "",
+      };
+    }).filter(msg => msg.content.trim().length > 0); // Remove empty messages
 
     // 🗄️ Connect to DB if chatId provided
     if (chatId) {
