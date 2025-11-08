@@ -1,14 +1,13 @@
 import { streamText, CoreMessage } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { auth } from "@/auth";
 import Chat from "@/models/Chat";
 import connectDB from "@/lib/mongodb";
 import { getPrompt } from "@/config/ai-prompts";
 
-const google = createGoogleGenerativeAI({
-  baseURL:
-    process.env.GOOGLE_GENERATIVE_AI_BASE_URL ??
-    "https://generativelanguage.googleapis.com/v1",
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL,
 });
 
 // 🚀 Main route handler
@@ -127,9 +126,19 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
-    // 🤖 Stream AI response using Google Gemini
+  if (!process.env.OPENAI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "OpenAI API key is not configured" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // 🤖 Stream AI response using OpenAI
     const result = streamText({
-      model: google("gemini-1.5-flash"),
+      model: openai("gpt-4o-mini"),
       system: systemPrompt.content,
       messages: messages,
     });
