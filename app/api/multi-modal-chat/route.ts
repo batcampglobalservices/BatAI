@@ -1,81 +1,122 @@
-import { streamText, UIMessage, convertToModelMessages } from "ai";
+import { streamText, convertToCoreMessages } from "ai";
 import { google } from "@ai-sdk/google";
 import { auth } from "@/auth";
 import Chat from "@/models/Chat";
 import connectDB from "@/lib/mongodb";
 import { getPrompt } from "@/config/ai-prompts";
 
-export async function POST(req: Request) {
+// 🧩 Message type (includes system for compatibility)
+interface Message {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+// 🧠 Request body type
+interface ChatRequestBody {
+  messages: Message[];
+  chatId?: string;
+  promptKey?: string;
+}
+
+// 🚀 Main route handler
+export async function POST(req: Request): Promise<Response> {
   try {
-    // Check authentication
+    // 🔒 Authenticate user
     const session = await auth();
     if (!session?.user?.email) {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    const body = await req.json();
-    console.log('Received request body:', JSON.stringify(body, null, 2));
+    // 📨 Parse request body safely
+    const body: ChatRequestBody = await req.json();
+    console.log("Received request body:", JSON.stringify(body, null, 2));
 
-    // Extract messages and custom body data
-    const messages = body.messages || [];
-    const chatId = body.chatId;
-    const promptKey = body.promptKey || "default";
+    const { messages = [], chatId, promptKey = "default" } = body;
 
-    console.log('Parsed data:', { 
-      promptKey, 
-      messagesCount: messages?.length, 
-      hasMessages: !!messages,
-      chatId 
+    console.log("Parsed data:", {
+      promptKey,
+      messagesCount: messages?.length,
+      hasMessages: Array.isArray(messages),
+      chatId,
     });
 
-    // Validate messages is an array
+    // ✅ Validate messages array
     if (!Array.isArray(messages)) {
-      console.error('Messages is not an array:', messages);
-      return new Response(JSON.stringify({ 
-        error: "Invalid messages format - must be an array", 
-        receivedType: typeof messages
-      }), { 
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      console.error("Messages is not an array:", messages);
+      return new Response(
+        JSON.stringify({
+          error: "Invalid messages format - must be an array",
+          receivedType: typeof messages,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
-    // Connect to DB if we need to save the chat
+    // 🗄️ Connect to DB if chatId provided
     if (chatId) {
       await connectDB();
-      // Verify chat belongs to user
       const chat = await Chat.findOne({
         _id: chatId,
         userEmail: session.user.email,
       });
+
       if (!chat) {
         return new Response("Chat not found", { status: 404 });
       }
     }
 
+    // 🧠 Load system prompt
     const systemPrompt = getPrompt(promptKey);
-    console.log('Using system prompt:', { promptKey, description: systemPrompt.description });
+    console.log("Using system prompt:", {
+      promptKey,
+      description: systemPrompt?.description,
+    });
 
-    // Convert messages safely
-    const convertedMessages = messages.length > 0 ? convertToModelMessages(messages) : [];
-    
+    if (!systemPrompt?.content) {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid prompt key",
+          promptKey,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // 🔁 Convert user messages to AI model format
+    const convertedMessages = messages.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+
+    // 🤖 Stream AI response using Google Gemini
     const result = streamText({
-      model: google("gemini-1.5-flash"),
-      messages: [
-        systemPrompt,
-        ...convertedMessages,
-      ],
+      model: google("gemini-1.5-flash"), // ✅ correct model name
+      system: systemPrompt.content,
+      messages: convertedMessages,
     });
 
-    // Return streamed response
-    return result.toUIMessageStreamResponse();
-  } catch (error) {
+    // 🚀 Return a streamable text response (correct for TypeScript)
+    return result.toTextStreamResponse();
+  } catch (error: unknown) {
     console.error("Error streaming chat completion:", error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error("Full error details:", errorMessage);
-    return new Response(JSON.stringify({ error: "Failed to stream chat completion", details: errorMessage }), { 
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+
+    return new Response(
+      JSON.stringify({
+        error: "Failed to stream chat completion",
+        details: errorMessage,
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }
