@@ -1,16 +1,9 @@
-import { streamText, UIMessage, convertToModelMessages } from "ai";
+import { streamText, CoreMessage } from "ai";
 import { google } from "@ai-sdk/google";
 import { auth } from "@/auth";
 import Chat from "@/models/Chat";
 import connectDB from "@/lib/mongodb";
 import { getPrompt } from "@/config/ai-prompts";
-
-// 🧠 Request body type
-interface ChatRequestBody {
-  messages: UIMessage[];
-  chatId?: string;
-  promptKey?: string;
-}
 
 // 🚀 Main route handler
 export async function POST(req: Request): Promise<Response> {
@@ -22,25 +15,30 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     // 📨 Parse request body safely
-    const body: ChatRequestBody = await req.json();
+    const body = await req.json();
     console.log("Received request body:", JSON.stringify(body, null, 2));
 
-    const { messages = [], chatId, promptKey = "default" } = body;
+    // Extract data from request
+    const messages: CoreMessage[] = body.messages || [];
+    const chatId = body.chatId;
+    const promptKey = body.promptKey || "default";
 
     console.log("Parsed data:", {
       promptKey,
       messagesCount: messages?.length,
       hasMessages: Array.isArray(messages),
       chatId,
+      bodyKeys: Object.keys(body),
     });
 
     // ✅ Validate messages array
-    if (!Array.isArray(messages)) {
-      console.error("Messages is not an array:", messages);
+    if (!Array.isArray(messages) || messages.length === 0) {
+      console.error("Invalid messages:", messages);
       return new Response(
         JSON.stringify({
-          error: "Invalid messages format - must be an array",
+          error: "Invalid messages format - must be a non-empty array",
           receivedType: typeof messages,
+          receivedBody: body,
         }),
         {
           status: 400,
@@ -82,14 +80,11 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
-    // 🔁 Convert user messages to AI model format
-    const convertedMessages = convertToModelMessages(messages);
-
     // 🤖 Stream AI response using Google Gemini
     const result = streamText({
       model: google("gemini-1.5-flash"), // ✅ correct model name
       system: systemPrompt.content,
-      messages: convertedMessages,
+      messages: messages,
     });
 
     // 🚀 Return a streamable response for the UI
