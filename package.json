@@ -16,10 +16,10 @@
     "@google/genai": "^1.29.0",
     "@supabase/supabase-js": "^2.87.1",
     "ai": "^5.0.89",
-    "next": "16.0.1",
+    "next": "^16.0.8",
     "next-auth": "^5.0.0-beta.30",
-    "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
