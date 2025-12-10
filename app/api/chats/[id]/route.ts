@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import connectDB from "@/lib/mongodb";
-import Chat from "@/models/Chat";
+import { supabase } from "@/lib/supabase";
 
 // Get a specific chat
 export async function GET(
@@ -14,14 +13,15 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
     const { id } = await context.params;
-    const chat = await Chat.findOne({
-      _id: id,
-      userEmail: session.user.email,
-    });
+    const { data: chat, error } = await supabase
+      .from('chats')
+      .select('*')
+      .eq('id', id)
+      .eq('user_email', session.user.email)
+      .single();
 
-    if (!chat) {
+    if (error || !chat) {
       return NextResponse.json({ error: "Chat not found" }, { status: 404 });
     }
 
@@ -44,21 +44,20 @@ export async function PATCH(
     }
 
     const { messages, title } = await req.json();
-
-    await connectDB();
     const { id } = await context.params;
-    const chat = await Chat.findOneAndUpdate(
-      { _id: id, userEmail: session.user.email },
-      { 
-        $set: { 
-          messages,
-          ...(title && { title })
-        } 
-      },
-      { new: true }
-    );
 
-    if (!chat) {
+    const updateData: any = { messages };
+    if (title) updateData.title = title;
+
+    const { data: chat, error } = await supabase
+      .from('chats')
+      .update(updateData)
+      .eq('id', id)
+      .eq('user_email', session.user.email)
+      .select()
+      .single();
+
+    if (error || !chat) {
       return NextResponse.json({ error: "Chat not found" }, { status: 404 });
     }
 
@@ -80,14 +79,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
     const { id } = await context.params;
-    const chat = await Chat.findOneAndDelete({
-      _id: id,
-      userEmail: session.user.email,
-    });
+    const { error } = await supabase
+      .from('chats')
+      .delete()
+      .eq('id', id)
+      .eq('user_email', session.user.email);
 
-    if (!chat) {
+    if (error) {
       return NextResponse.json({ error: "Chat not found" }, { status: 404 });
     }
 

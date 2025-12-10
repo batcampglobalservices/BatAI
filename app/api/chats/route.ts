@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import connectDB from "@/lib/mongodb";
-import Chat from "@/models/Chat";
+import { supabase } from "@/lib/supabase";
 
 // Get all chats for the user
 export async function GET() {
@@ -11,11 +10,13 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
-    const chats = await Chat.find({ userEmail: session.user.email })
-      .sort({ updatedAt: -1 })
-      .select("_id title createdAt updatedAt")
-      .lean();
+    const { data: chats, error } = await supabase
+      .from('chats')
+      .select('id, title, created_at, updated_at')
+      .eq('user_email', session.user.email)
+      .order('updated_at', { ascending: false });
+
+    if (error) throw error;
 
     return NextResponse.json({ chats });
   } catch (error) {
@@ -35,15 +36,20 @@ export async function POST(req: Request) {
     const body = await req.json();
     const title = body.title || "New Chat";
 
-    await connectDB();
-    const chat = await Chat.create({
-      userId: session.user.id || session.user.email,
-      userEmail: session.user.email,
-      title,
-      messages: [],
-    });
+    const { data: chat, error } = await supabase
+      .from('chats')
+      .insert({
+        user_id: session.user.id || session.user.email,
+        user_email: session.user.email,
+        title,
+        messages: [],
+      })
+      .select()
+      .single();
 
-    return NextResponse.json({ chat: chat.toObject() });
+    if (error) throw error;
+
+    return NextResponse.json({ chat });
   } catch (error) {
     console.error("Error creating chat:", error);
     return NextResponse.json({ error: "Failed to create chat" }, { status: 500 });
